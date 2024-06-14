@@ -1,0 +1,27 @@
+FROM heroiclabs/nakama-pluginbuilder:3.22.0 AS go-tests
+
+WORKDIR /tests
+
+COPY go.mod .
+COPY main.go .
+COPY main_e2e_test.go .
+
+# Download all dependencies. Dependencies will be cached if the go.mod file is not changed
+RUN go get -t nakama-rpc
+RUN go mod download
+
+# Create vendor directory
+RUN go mod vendor
+
+# Copy the sample files into the appropriate directory
+COPY sample_files/ sample_files/
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl
+
+# Run tests
+CMD until curl -sSf http://nakama:7350/healthcheck; do \
+      echo "Waiting for Nakama to be ready..."; \
+      sleep 5; \
+    done && \
+    go test -v main_e2e_test.go
